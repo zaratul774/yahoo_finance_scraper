@@ -212,15 +212,15 @@ async def scrape_playwright(ticker: str, max_articles: int = 30) -> list[dict]:
                 if href and href.startswith("/"):
                     href = f"https://finance.yahoo.com{href}"
 
-                # Source · timestamp
+                # FIX: Only extract source name, drop the relative time string
+                # ("2 hours ago") entirely — we store our own UTC timestamp instead
+                # which is actually useful for analysis.
                 source_el = await item.query_selector("div.publishing")
                 source_text = await source_el.inner_text() if source_el else ""
                 parts = source_text.split("·")
                 source = parts[0].strip() if parts else None
 
-                # Store scraped_at as the published time since Yahoo only
-                # gives relative strings ("2 hours ago") on the page.
-                # The RSS fallback gives real timestamps — prefer that when possible.
+                # Store UTC time of scrape as the published timestamp
                 published = datetime.now(timezone.utc).isoformat()
 
                 articles.append({
@@ -345,8 +345,10 @@ async def main():
         else:
             print(f"\n--- Latest {len(articles)} articles for {ticker} ---\n")
             for a in articles:
+                # FIX: display source and scraped_at only — no messy relative
+                # time string mixed in
                 print(f"  {a['headline']}")
-                print(f"  {a['source']} | {a['published']}")
+                print(f"  {a['source']} | scraped: {a['scraped_at']}")
                 print(f"  {a['url']}\n")
 
     elif args.tickers:
